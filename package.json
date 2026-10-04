@@ -1,6 +1,6 @@
 {
   "name": "cody1-storekit",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Cody1 App Store marketing asset generator — genuine screenshots, deterministic rendering",
   "type": "module",
   "license": "MIT",

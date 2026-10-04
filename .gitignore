@@ -1,0 +1,17 @@
+node_modules/
+dist-ui/
+dist-server/
+dist-electron/
+dist-node/
+dist/
+release/
+build/icon.iconset/
+.DS_Store
+*.log
+.cache/
+.vite/
+apps/*/output/**
+!apps/*/output/.gitkeep
+apps/*/.cody1storekit-placeholders.json
+.env
+.env.*

@@ -1,0 +1,24 @@
+{
+  "screens": {
+    "screen1": {
+      "headline": "HEADLINE 1",
+      "subhead": "Supporting copy for this screen."
+    },
+    "screen2": {
+      "headline": "HEADLINE 2",
+      "subhead": "Supporting copy for this screen."
+    },
+    "screen3": {
+      "headline": "HEADLINE 3",
+      "subhead": "Supporting copy for this screen."
+    },
+    "screen4": {
+      "headline": "HEADLINE 4",
+      "subhead": "Supporting copy for this screen."
+    },
+    "screen5": {
+      "headline": "HEADLINE 5",
+      "subhead": "Supporting copy for this screen."
+    }
+  }
+}

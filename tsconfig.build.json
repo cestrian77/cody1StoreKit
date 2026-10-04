@@ -1,0 +1,11 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "outDir": "dist-node",
+    "declaration": true,
+    "jsx": "react-jsx"
+  },
+  "include": ["src/renderer/**/*", "src/schemas/**/*", "src/validation/**/*", "src/config/**/*", "src/presets/**/*", "src/localisation/**/*", "src/cli/**/*", "src/utils/**/*", "src/backgrounds/**/*", "src/devices/**/*", "src/typography/**/*", "src/templates/**/*", "src/layouts/**/*"],
+  "exclude": ["src/ui", "src/server"]
+}

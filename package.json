@@ -1,0 +1,103 @@
+{
+  "name": "cody1-storekit",
+  "version": "1.0.0",
+  "description": "Cody1 App Store marketing asset generator — genuine screenshots, deterministic rendering",
+  "type": "module",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/cestrian77/cody1StoreKit.git"
+  },
+  "homepage": "https://github.com/cestrian77/cody1StoreKit#readme",
+  "bugs": {
+    "url": "https://github.com/cestrian77/cody1StoreKit/issues"
+  },
+  "main": "dist-electron/main.cjs",
+  "author": "Cody1",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "tsx watch src/server/dev-server.ts",
+    "build": "vite build && tsc -p tsconfig.build.json",
+    "build:ui": "vite build",
+    "build:server": "esbuild src/server/standalone.ts --bundle --platform=node --format=esm --outfile=dist-server/standalone.js --packages=external",
+    "build:electron": "esbuild electron/main.ts --bundle --platform=node --format=cjs --outfile=dist-electron/main.cjs --external:electron --external:../dist-server/standalone.js",
+    "desktop": "npm run build:ui && npm run build:server && npm run build:electron && electron dist-electron/main.cjs",
+    "dist:mac": "npm run build:ui && npm run build:server && npm run build:electron && CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --mac",
+    "generate": "tsx src/cli/generate.ts",
+    "validate": "tsx src/cli/validate.ts",
+    "preview": "tsx src/cli/preview.ts",
+    "package": "tsx src/cli/package.ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit",
+    "icons": "node scripts/generate-icons.mjs"
+  },
+  "dependencies": {
+    "@fontsource/inter": "^5.2.5",
+    "commander": "^13.1.0",
+    "express": "^4.21.2",
+    "jiti": "^2.7.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "sharp": "^0.33.5",
+    "zod": "^3.24.2"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.13.10",
+    "@types/react": "^19.0.10",
+    "@types/react-dom": "^19.0.4",
+    "@vitejs/plugin-react": "^4.3.4",
+    "electron": "^33.4.11",
+    "electron-builder": "^25.1.8",
+    "esbuild": "^0.25.2",
+    "tsx": "^4.19.3",
+    "typescript": "^5.8.2",
+    "vite": "^6.2.2",
+    "vitest": "^3.0.9"
+  },
+  "build": {
+    "appId": "com.cody1.storekit",
+    "productName": "Cody1StoreKit",
+    "asar": true,
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist-electron/**/*",
+      "dist-server/**/*",
+      "dist-ui/**/*",
+      "node_modules/**/*",
+      "package.json"
+    ],
+    "asarUnpack": [
+      "**/node_modules/sharp/**",
+      "**/node_modules/@img/**"
+    ],
+    "extraResources": [
+      {
+        "from": "apps/example",
+        "to": "seed-apps/example",
+        "filter": [
+          "**/*",
+          "!.cody1storekit-placeholders.json"
+        ]
+      }
+    ],
+    "mac": {
+      "icon": "build/icon.icns",
+      "category": "public.app-category.developer-tools",
+      "target": [
+        "dir",
+        "dmg",
+        "zip"
+      ],
+      "darkModeSupport": true,
+      "identity": null,
+      "gatekeeperAssess": false,
+      "hardenedRuntime": false
+    }
+  }
+}

@@ -153,6 +153,24 @@ export async function markScreenshotAsGenuine(
   });
 }
 
+/** Overwrite a screenshot slot with the demo placeholder (used when resetting a screen). */
+export async function forceRestorePlaceholderScreenshot(
+  appId: string,
+  filename: string,
+): Promise<void> {
+  const full = path.join(screenshotsRawDir(appId), filename);
+  const hash = await createPlaceholderScreenshot(full, filename);
+  const manifest = await readPlaceholderManifest(appId);
+  const files = new Set(manifest.files);
+  files.add(filename);
+  const hashes = { ...(manifest.hashes ?? {}), [filename]: hash };
+  await writePlaceholderManifest(appId, {
+    files: [...files].sort(),
+    hashes,
+    updatedAt: new Date().toISOString(),
+  });
+}
+
 export function formatPlaceholderError(
   appId: string,
   filename: string,

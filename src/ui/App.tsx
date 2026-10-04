@@ -125,6 +125,7 @@ export function App() {
   const [dragging, setDragging] = useState(false);
   const [shotDragging, setShotDragging] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [screenshotEpoch, setScreenshotEpoch] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const savedSnapshotRef = useRef("");
 
@@ -353,6 +354,29 @@ export function App() {
     }
   }
 
+  function applyProjectFromServer(
+    data: { config: AppConfig; locale?: Record<string, unknown> },
+    options?: { keepScreenId?: boolean; nextScreenId?: string },
+  ) {
+    setConfig(data.config);
+    setLocaleBundle(data.locale ?? {});
+    if (options?.nextScreenId) {
+      setScreenId(options.nextScreenId);
+    } else if (!options?.keepScreenId) {
+      setScreenId((current) =>
+        data.config.screens.some((s) => s.id === current)
+          ? current
+          : (data.config.screens[0]?.id ?? current),
+      );
+    }
+    savedSnapshotRef.current = JSON.stringify({
+      config: data.config,
+      localeBundle: data.locale ?? {},
+    });
+    setScreenshotEpoch((n) => n + 1);
+    previewRequestId.current += 1;
+  }
+
   async function uploadScreenshot(file: File) {
     if (!config || !screen) return;
     setUploading(true);
@@ -409,6 +433,105 @@ export function App() {
     });
     const data = await res.json();
     setStatus(data.text ?? data.error);
+  }
+
+  async function resetCurrentScreen() {
+    setStatus("");
+    try {
+      const res = await fetch(`/api/apps/${appId}/reset-screen`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ screenId }),
+      });
+      const data = await res.json();
+      if (!res.ok || data.error) {
+        setStatus(data.error ?? "Reset screen failed");
+        return;
+      }
+      applyProjectFromServer(data, { keepScreenId: true });
+      await refreshScreenshots();
+      setStatus("Screen reset to starter defaults.");
+    } catch (e) {
+      setStatus(e instanceof Error ? e.message : "Reset screen failed");
+    }
+  }
+
+  async function resetEntireApp() {
+    setStatus("");
+    try {
+      const res = await fetch(`/api/apps/${appId}/reset-app`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
+      const data = await res.json();
+      if (!res.ok || data.error) {
+        setStatus(data.error ?? "Reset app failed");
+        return;
+      }
+      applyProjectFromServer(data, { keepScreenId: true });
+      await refreshScreenshots();
+      setStatus("App reset to starter defaults.");
+    } catch (e) {
+      setStatus(e instanceof Error ? e.message : "Reset app failed");
+    }
+  }
+
+  async function deleteCurrentScreen() {
+    if (!config || config.screens.length <= 1) {
+      setStatus("Cannot delete the last screen.");
+      return;
+    }
+    setStatus("");
+    try {
+      const res = await fetch(
+        `/api/apps/${appId}/screens/${encodeURIComponent(screenId)}`,
+        { method: "DELETE" },
+      );
+      const data = await res.json();
+      if (!res.ok || data.error) {
+        setStatus(data.error ?? "Delete screen failed");
+        return;
+      }
+      applyProjectFromServer(data, { nextScreenId: data.nextScreenId });
+      await refreshScreenshots();
+      setStatus(`Removed screen “${data.removedScreenId}”.`);
+    } catch (e) {
+      setStatus(e instanceof Error ? e.message : "Delete screen failed");
+    }
+  }
+
+  function confirmResetScreen() {
+    if (
+      !confirm(
+        "Reset this screen to starter defaults? Uploads for this screen are removed.",
+      )
+    ) {
+      return;
+    }
+    window.setTimeout(() => void resetCurrentScreen(), 0);
+  }
+
+  function confirmResetApp() {
+    if (
+      !confirm(
+        "Reset the whole app to starter defaults? All screens, copy, and uploads are restored to first-load placeholders.",
+      )
+    ) {
+      return;
+    }
+    window.setTimeout(() => void resetEntireApp(), 0);
+  }
+
+  function confirmDeleteScreen() {
+    if (
+      !confirm(
+        `Delete screen “${screenId}” from this project? This cannot be undone.`,
+      )
+    ) {
+      return;
+    }
+    window.setTimeout(() => void deleteCurrentScreen(), 0);
   }
 
   async function runGenerate(production: boolean) {
@@ -636,7 +759,7 @@ export function App() {
                   title={f}
                 >
                   <img
-                    src={`/api/apps/${appId}/screenshot/${encodeURIComponent(f)}`}
+                    src={`/api/apps/${appId}/screenshot/${encodeURIComponent(f)}?v=${screenshotEpoch}`}
                     alt={f}
                   />
                 </button>
@@ -792,23 +915,24 @@ export function App() {
             <button
               type="button"
               className="btn btn-danger"
-              onClick={() => {
-                if (!confirm("Reset this screen to defaults?")) return;
-                loadApp(appId);
-              }}
+              onClick={confirmResetScreen}
             >
               Reset Screen
             </button>
             <button
               type="button"
               className="btn btn-danger"
-              onClick={() => {
-                if (!confirm("Reload app from disk (discard unsaved edits)?"))
-                  return;
-                loadApp(appId);
-              }}
+              onClick={confirmResetApp}
             >
               Reset App
+            </button>
+            <button
+              type="button"
+              className="btn btn-danger"
+              disabled={config.screens.length <= 1}
+              onClick={confirmDeleteScreen}
+            >
+              Delete Screen
             </button>
           </div>
         </aside>

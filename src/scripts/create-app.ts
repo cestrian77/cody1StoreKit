@@ -3,15 +3,10 @@ import path from "node:path";
 import type { AppConfig } from "../schemas/app-config.js";
 import { appRoot } from "../config/paths.js";
 import { importAppConfigModule } from "../config/load-app-config-file.js";
-import { getTemplateStarterDefaults } from "../templates/index.js";
-
-const STARTER_SCREENS = [
-  "01-hero",
-  "02-feature",
-  "03-feature",
-  "04-feature",
-  "05-feature",
-];
+import {
+  buildStarterLocaleBundle,
+  buildStarterScreens,
+} from "../config/starter-defaults.js";
 
 export async function createApp(options: {
   id: string;
@@ -47,7 +42,6 @@ export async function createApp(options: {
     localeJson = JSON.parse(await fs.readFile(locPath, "utf-8"));
   } else {
     const targets = options.targets ?? ["ios"];
-    const starter = getTemplateStarterDefaults(options.template);
     config = {
       app: { id: options.id, name: options.name },
       targets,
@@ -55,40 +49,9 @@ export async function createApp(options: {
       defaultLocale: options.defaultLocale,
       defaultPreset: "iphone69",
       defaultMacPreset: "mac2880",
-      screens: STARTER_SCREENS.map((id, i) => ({
-        id,
-        copy: {
-          headline: `screens.screen${i + 1}.headline`,
-          subhead: `screens.screen${i + 1}.subhead`,
-        },
-        screenshot: i === 0 ? "screen-1.png" : `screen-${i + 1}.png`,
-        background: { preset: starter.backgroundPreset },
-        device: {
-          type: "iphone",
-          scale: starter.device.scale,
-          x: starter.device.x,
-          y: starter.device.y,
-          rotation: 0,
-          shadow: true,
-          appearance: starter.device.appearance,
-        },
-        layout: {
-          type: starter.layout.type,
-          textAlign: starter.layout.textAlign,
-        },
-      })),
+      screens: buildStarterScreens(options.template),
     };
-    localeJson = {
-      screens: Object.fromEntries(
-        STARTER_SCREENS.map((_, i) => [
-          `screen${i + 1}`,
-          {
-            headline: `HEADLINE ${i + 1}`,
-            subhead: "Supporting copy for this screen.",
-          },
-        ]),
-      ),
-    };
+    localeJson = buildStarterLocaleBundle();
   }
 
   await fs.mkdir(path.join(root, "screenshots", "raw"), { recursive: true });

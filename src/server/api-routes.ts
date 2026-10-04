@@ -23,9 +23,19 @@ import { validateApp, formatReport } from "../validation/validate-app.js";
 import { createApp } from "../scripts/create-app.js";
 import { getPreset } from "../presets/output-presets.js";
 import { ensureDevScreenshots } from "../utils/placeholders.js";
+import {
+  deleteUnreferencedScreenshotFiles,
+  restorePlaceholderScreenshotsForConfig,
+} from "../utils/screenshot-cleanup.js";
+import { forceRestorePlaceholderScreenshot } from "../utils/placeholders.js";
 import { storeAppScreenshot } from "../utils/screenshot-storage.js";
 import { parseScreenshotUpload } from "./parse-multipart.js";
 import type { AppConfig } from "../schemas/app-config.js";
+import {
+  buildStarterLocaleBundle,
+  resetLocaleCopyForScreen,
+  resetScreenToStarter,
+} from "../config/starter-defaults.js";
 
 export function registerApiRoutes(app: Express): void {
   app.get("/api/health", (_req, res) => {
@@ -121,6 +131,130 @@ export function registerApiRoutes(app: Express): void {
       const files = await fs.readdir(dir);
       const pngs = files.filter((f) => f.toLowerCase().endsWith(".png"));
       res.json(pngs);
+    } catch (e) {
+      res.status(400).json({
+        error: e instanceof Error ? e.message : String(e),
+      });
+    }
+  });
+
+  app.post("/api/apps/:appId/reset-screen", async (req, res) => {
+    try {
+      const appId = req.params.appId;
+      const { screenId } = req.body as { screenId?: string };
+      if (!screenId) {
+        res.status(400).json({ error: "screenId is required" });
+        return;
+      }
+      const config = await loadAppConfig(appId);
+      const index = config.screens.findIndex((s) => s.id === screenId);
+      if (index < 0) {
+        res.status(404).json({ error: `Screen not found: ${screenId}` });
+        return;
+      }
+      const existing = config.screens[index]!;
+      const screens = config.screens.map((s, i) =>
+        i === index ? resetScreenToStarter(s, index, config.template) : s,
+      );
+      const nextConfig = { ...config, screens };
+      await saveAppConfig(appId, nextConfig);
+
+      let localeBundle: Record<string, unknown> = {};
+      try {
+        localeBundle = await loadLocale(appId, config.defaultLocale);
+      } catch {
+        localeBundle = buildStarterLocaleBundle();
+      }
+      localeBundle = resetLocaleCopyForScreen(
+        localeBundle,
+        existing,
+        index,
+      );
+      await fs.writeFile(
+        path.join(localesDir(appId), `${config.defaultLocale}.json`),
+        JSON.stringify(localeBundle, null, 2),
+        "utf-8",
+      );
+
+      const resetScreen = nextConfig.screens[index]!;
+      if (resetScreen.screenshot) {
+        await forceRestorePlaceholderScreenshot(appId, resetScreen.screenshot);
+      }
+      await deleteUnreferencedScreenshotFiles(appId, nextConfig);
+
+      res.json({ ok: true, config: nextConfig, locale: localeBundle });
+    } catch (e) {
+      res.status(400).json({
+        error: e instanceof Error ? e.message : String(e),
+      });
+    }
+  });
+
+  app.post("/api/apps/:appId/reset-app", async (req, res) => {
+    try {
+      const appId = req.params.appId;
+      const config = await loadAppConfig(appId);
+      const screens = config.screens.map((s, i) =>
+        resetScreenToStarter(s, i, config.template),
+      );
+      const nextConfig = { ...config, screens };
+      await saveAppConfig(appId, nextConfig);
+
+      const localeBundle = buildStarterLocaleBundle();
+      await fs.writeFile(
+        path.join(localesDir(appId), `${config.defaultLocale}.json`),
+        JSON.stringify(localeBundle, null, 2),
+        "utf-8",
+      );
+
+      await restorePlaceholderScreenshotsForConfig(appId, nextConfig);
+      await deleteUnreferencedScreenshotFiles(appId, nextConfig);
+
+      res.json({ ok: true, config: nextConfig, locale: localeBundle });
+    } catch (e) {
+      res.status(400).json({
+        error: e instanceof Error ? e.message : String(e),
+      });
+    }
+  });
+
+  app.delete("/api/apps/:appId/screens/:screenId", async (req, res) => {
+    try {
+      const appId = req.params.appId;
+      const screenId = req.params.screenId;
+      const config = await loadAppConfig(appId);
+      if (config.screens.length <= 1) {
+        res.status(400).json({ error: "Cannot delete the last screen." });
+        return;
+      }
+      const index = config.screens.findIndex((s) => s.id === screenId);
+      if (index < 0) {
+        res.status(404).json({ error: `Screen not found: ${screenId}` });
+        return;
+      }
+      const removed = config.screens[index]!;
+      const screens = config.screens.filter((s) => s.id !== screenId);
+      const nextConfig = { ...config, screens };
+      await saveAppConfig(appId, nextConfig);
+      await deleteUnreferencedScreenshotFiles(appId, nextConfig);
+
+      let localeBundle: Record<string, unknown> = {};
+      try {
+        localeBundle = await loadLocale(appId, config.defaultLocale);
+      } catch {
+        localeBundle = {};
+      }
+
+      const nextScreenId =
+        screens[Math.min(index, screens.length - 1)]?.id ?? screens[0]!.id;
+
+      res.json({
+        ok: true,
+        config: nextConfig,
+        locale: localeBundle,
+        nextScreenId,
+        removedScreenId: removed.id,
+      });
     } catch (e) {
       res.status(400).json({
         error: e instanceof Error ? e.message : String(e),

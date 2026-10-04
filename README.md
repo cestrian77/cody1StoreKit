@@ -98,7 +98,7 @@ The local editor (`npm run dev` or the macOS `.app`) is a three-column workspace
 | **Top bar** | Switch apps, **Add App** (id, name, starter template, iOS/Mac targets, optional duplicate-from). |
 | **Screen set** (left) | Pick each marketing screen in your set. |
 | **Preview** (centre) | Live render at the selected **output preset**. **Drag** the device frame to reposition it. Buttons: **Preview**, **Validate**, **Generate All** (production — blocks placeholders), **Generate (dev)** (allows demo placeholders), **Save project** (writes `app.config.json`, locale copy, and screenshot links). |
-| **Inspector** (right) | Edit headline and supporting copy, **Upload for this screen** or drag PNG/JPEG, pick from screenshot thumbnails, choose **Template** and **Background**, switch **Output preset**, and adjust **Device** type (iPhone / iPad / Mac), scale, X/Y, and rotation sliders. **Reset Screen** / **Reset App** reload from disk. |
+| **Inspector** (right) | Edit headline and supporting copy, **Upload for this screen** or drag PNG/JPEG, pick from screenshot thumbnails, choose **Template** and **Background**, switch **Output preset**, and adjust **Device** type (iPhone / iPad / Mac), scale, X/Y, and rotation sliders. **Reset Screen** / **Reset App** restore starter layout, copy, and demo placeholder screenshots (orphan uploads are deleted). **Delete Screen** removes a screen from the project (minimum one screen). |
 
 Unsaved edits prompt before switching apps. Uploads are stored immediately under `apps/<id>/screenshots/raw/`; use **Save project** so config and locale keys point at the right files.
 

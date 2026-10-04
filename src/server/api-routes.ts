@@ -23,6 +23,8 @@ import { validateApp, formatReport } from "../validation/validate-app.js";
 import { createApp } from "../scripts/create-app.js";
 import { getPreset } from "../presets/output-presets.js";
 import { ensureDevScreenshots } from "../utils/placeholders.js";
+import { storeAppScreenshot } from "../utils/screenshot-storage.js";
+import { parseScreenshotUpload } from "./parse-multipart.js";
 import type { AppConfig } from "../schemas/app-config.js";
 
 export function registerApiRoutes(app: Express): void {
@@ -119,6 +121,24 @@ export function registerApiRoutes(app: Express): void {
       const files = await fs.readdir(dir);
       const pngs = files.filter((f) => f.toLowerCase().endsWith(".png"));
       res.json(pngs);
+    } catch (e) {
+      res.status(400).json({
+        error: e instanceof Error ? e.message : String(e),
+      });
+    }
+  });
+
+  app.post("/api/apps/:appId/screenshots", async (req, res) => {
+    try {
+      const appId = req.params.appId;
+      await loadAppConfig(appId);
+      const { buffer, originalName, screenId } = await parseScreenshotUpload(req);
+      const result = await storeAppScreenshot(appId, buffer, {
+        screenId,
+        originalName,
+      });
+      const config = await loadAppConfig(appId);
+      res.json({ ok: true, ...result, config });
     } catch (e) {
       res.status(400).json({
         error: e instanceof Error ? e.message : String(e),

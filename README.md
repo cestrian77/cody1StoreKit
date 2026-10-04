@@ -70,20 +70,13 @@ To work directly in the repo, use `npm run dev` or `npm run desktop` from your c
 
 The repo includes a minimal **`example`** app (five screens, placeholder screenshots in dev). Use it to learn the workflow, then **Add App** in the UI for your real product.
 
-1. Capture simulator or device screenshots and place them in:
+1. Open the app (`npm run dev` or the macOS `.app`), select your app and each screen in **Screen set**.
+2. Use **Upload for this screen** (or drag PNG/JPEG onto the drop zone). Files are saved under that app’s `screenshots/raw/` with managed names — no manual renaming.
+3. Adjust copy and layout, pick another screenshot from the thumbnails if needed, then **Save project** (config, locale copy, and screenshot links).
 
-```text
-apps/example/screenshots/raw/
-  screen-1.png
-  screen-2.png
-  …
-```
+Optional: copy files into `apps/<id>/screenshots/raw/` yourself if you prefer the filesystem.
 
-(Filenames must match `screenshot` fields in `apps/example/app.config.json`.)
-
-2. Remove any entries from `apps/example/.cody1storekit-placeholders.json` once real files exist (or replace files — the manifest updates on the next dev preview).
-
-3. Generate production assets:
+4. Generate production assets:
 
 ```bash
 npm run generate -- --app example --locale en-GB --preset iphone69
@@ -95,6 +88,21 @@ Output:
 apps/example/output/en-GB/iphone69/
 apps/example/output/previews/
 ```
+
+## Browser UI
+
+The local editor (`npm run dev` or the macOS `.app`) is a three-column workspace:
+
+| Area | What you can do |
+|------|-----------------|
+| **Top bar** | Switch apps, **Add App** (id, name, starter template, iOS/Mac targets, optional duplicate-from). |
+| **Screen set** (left) | Pick each marketing screen in your set. |
+| **Preview** (centre) | Live render at the selected **output preset**. **Drag** the device frame to reposition it. Buttons: **Preview**, **Validate**, **Generate All** (production — blocks placeholders), **Generate (dev)** (allows demo placeholders), **Save project** (writes `app.config.json`, locale copy, and screenshot links). |
+| **Inspector** (right) | Edit headline and supporting copy, **Upload for this screen** or drag PNG/JPEG, pick from screenshot thumbnails, choose **Template** and **Background**, switch **Output preset**, and adjust **Device** type (iPhone / iPad / Mac), scale, X/Y, and rotation sliders. **Reset Screen** / **Reset App** reload from disk. |
+
+Unsaved edits prompt before switching apps. Uploads are stored immediately under `apps/<id>/screenshots/raw/`; use **Save project** so config and locale keys point at the right files.
+
+Packaged macOS builds use **Open Apps Folder** (menu) for the same `apps/` layout under Application Support.
 
 ## Commands
 
@@ -156,15 +164,19 @@ Re-verify dimensions when Apple updates App Store Connect requirements.
 
 ## Templates
 
-- **utility-clean** — productivity / utilities
-- **puzzle** — word and puzzle games
-- **arcade** — high-energy game marketing
+Fourteen presets share one renderer (`src/renderer/`). Pick per screen in the UI or set a default in `app.config.json`.
 
-All templates share the same renderer (`src/renderer/`).
+| Group | IDs |
+|-------|-----|
+| **Utility** | `utility-clean`, `utility-minimal`, `utility-pro`, `utility-editorial`, `utility-mint` |
+| **Puzzle** | `puzzle`, `puzzle-soft`, `puzzle-vivid`, `puzzle-night` |
+| **Arcade** | `arcade`, `arcade-neon`, `arcade-retro`, `arcade-candy` |
+
+Definitions and starter layouts: `src/templates/catalog.ts`.
 
 ## Background presets
 
-`soft-blue`, `warm-cream`, `soft-lavender`, `soft-green`, `soft-coral`, `clean-white`, `dark-game`, `bright-game`
+`soft-blue`, `warm-cream`, `soft-lavender`, `soft-green`, `soft-coral`, `clean-white`, `dark-game`, `bright-game`, `slate-pro`, `mint-fresh`, `ocean-deep`, `candy-pop`, `neon-night`, `sunset-warm`
 
 ## Localisation
 

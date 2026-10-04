@@ -3,6 +3,7 @@ import path from "node:path";
 import type { AppConfig } from "../schemas/app-config.js";
 import { appRoot } from "../config/paths.js";
 import { importAppConfigModule } from "../config/load-app-config-file.js";
+import { getTemplateStarterDefaults } from "../templates/index.js";
 
 const STARTER_SCREENS = [
   "01-hero",
@@ -46,6 +47,7 @@ export async function createApp(options: {
     localeJson = JSON.parse(await fs.readFile(locPath, "utf-8"));
   } else {
     const targets = options.targets ?? ["ios"];
+    const starter = getTemplateStarterDefaults(options.template);
     config = {
       app: { id: options.id, name: options.name },
       targets,
@@ -60,17 +62,20 @@ export async function createApp(options: {
           subhead: `screens.screen${i + 1}.subhead`,
         },
         screenshot: i === 0 ? "screen-1.png" : `screen-${i + 1}.png`,
-        background: { preset: "soft-blue" },
+        background: { preset: starter.backgroundPreset },
         device: {
           type: "iphone",
-          scale: 0.82,
-          x: 0.5,
-          y: 0.73,
+          scale: starter.device.scale,
+          x: starter.device.x,
+          y: starter.device.y,
           rotation: 0,
           shadow: true,
-          appearance: "dark",
+          appearance: starter.device.appearance,
         },
-        layout: { type: "hero-device", textAlign: "center" },
+        layout: {
+          type: starter.layout.type,
+          textAlign: starter.layout.textAlign,
+        },
       })),
     };
     localeJson = {

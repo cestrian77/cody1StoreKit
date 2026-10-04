@@ -24,6 +24,6 @@ apps/<id>/
 
 - `targets`: `["ios"]`, `["mac"]`, or `["ios", "mac"]` — filters output presets in the UI
 - `defaultPreset` / `defaultMacPreset` — primary export sizes
-- `template`: `utility-clean`, `puzzle`, or `arcade`
+- `template`: per-screen or app default — see **Templates** in the root `README.md` (14 presets across utility, puzzle, and arcade)
 
 Duplicate an existing app id in **Add App** when you want to reuse screen structure and tweak from there.

@@ -115,6 +115,98 @@ export const BACKGROUND_PRESETS: Record<string, BackgroundPreset> = {
       },
     },
   },
+  "slate-pro": {
+    id: "slate-pro",
+    label: "Slate Pro",
+    config: {
+      gradient: {
+        type: "linear",
+        angle: 165,
+        stops: [
+          { offset: 0, color: "#1E293B" },
+          { offset: 0.55, color: "#0F172A" },
+          { offset: 1, color: "#020617" },
+        ],
+      },
+    },
+  },
+  "mint-fresh": {
+    id: "mint-fresh",
+    label: "Mint Fresh",
+    config: {
+      gradient: {
+        type: "linear",
+        angle: 150,
+        stops: [
+          { offset: 0, color: "#D1FAE5" },
+          { offset: 0.5, color: "#A7F3D0" },
+          { offset: 1, color: "#6EE7B7" },
+        ],
+      },
+    },
+  },
+  "ocean-deep": {
+    id: "ocean-deep",
+    label: "Ocean Deep",
+    config: {
+      gradient: {
+        type: "radial",
+        cx: 0.5,
+        cy: 0.3,
+        r: 0.9,
+        stops: [
+          { offset: 0, color: "#0C4A6E" },
+          { offset: 0.55, color: "#082F49" },
+          { offset: 1, color: "#020617" },
+        ],
+      },
+    },
+  },
+  "candy-pop": {
+    id: "candy-pop",
+    label: "Candy Pop",
+    config: {
+      gradient: {
+        type: "linear",
+        angle: 125,
+        stops: [
+          { offset: 0, color: "#F472B6" },
+          { offset: 0.45, color: "#FB7185" },
+          { offset: 1, color: "#FBBF24" },
+        ],
+      },
+    },
+  },
+  "neon-night": {
+    id: "neon-night",
+    label: "Neon Night",
+    config: {
+      gradient: {
+        type: "linear",
+        angle: 180,
+        stops: [
+          { offset: 0, color: "#1E1B4B" },
+          { offset: 0.5, color: "#312E81" },
+          { offset: 1, color: "#0F0A1F" },
+        ],
+      },
+    },
+  },
+  "sunset-warm": {
+    id: "sunset-warm",
+    label: "Sunset Warm",
+    config: {
+      gradient: {
+        type: "linear",
+        angle: 160,
+        stops: [
+          { offset: 0, color: "#FB923C" },
+          { offset: 0.45, color: "#F97316" },
+          { offset: 1, color: "#9A3412" },
+        ],
+      },
+    },
+  },
 };
 
 export function resolveBackground(config?: BackgroundConfig): BackgroundConfig {

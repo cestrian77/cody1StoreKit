@@ -23,6 +23,59 @@ type Preset = {
   platform: string;
 };
 type BgPreset = { id: string; label: string };
+type TemplateOption = {
+  id: string;
+  label: string;
+  category: string;
+  description: string;
+};
+
+const TEMPLATE_GROUP_ORDER = ["utility", "puzzle", "arcade"] as const;
+const TEMPLATE_GROUP_LABELS: Record<string, string> = {
+  utility: "Utility",
+  puzzle: "Puzzle",
+  arcade: "Arcade",
+};
+
+function TemplateSelect({
+  value,
+  onChange,
+  templates,
+}: {
+  value: string;
+  onChange: (id: string) => void;
+  templates: TemplateOption[];
+}) {
+  const grouped = useMemo(() => {
+    return TEMPLATE_GROUP_ORDER.map((cat) => ({
+      cat,
+      label: TEMPLATE_GROUP_LABELS[cat] ?? cat,
+      items: templates.filter((t) => t.category === cat),
+    })).filter((g) => g.items.length > 0);
+  }, [templates]);
+
+  if (templates.length === 0) {
+    return (
+      <select value={value} onChange={(e) => onChange(e.target.value)}>
+        <option value="utility-clean">Utility Clean</option>
+      </select>
+    );
+  }
+
+  return (
+    <select value={value} onChange={(e) => onChange(e.target.value)}>
+      {grouped.map((g) => (
+        <optgroup key={g.cat} label={g.label}>
+          {g.items.map((t) => (
+            <option key={t.id} value={t.id} title={t.description}>
+              {t.label}
+            </option>
+          ))}
+        </optgroup>
+      ))}
+    </select>
+  );
+}
 
 function resolveKey(bundle: Record<string, unknown>, key: string): string {
   const parts = key.split(".");
@@ -60,6 +113,7 @@ export function App() {
   );
   const [presets, setPresets] = useState<Preset[]>([]);
   const [backgrounds, setBackgrounds] = useState<BgPreset[]>([]);
+  const [templates, setTemplates] = useState<TemplateOption[]>([]);
   const [screenshots, setScreenshots] = useState<string[]>([]);
   const [screenId, setScreenId] = useState<string>("01-hero");
   const [presetId, setPresetId] = useState("iphone69");
@@ -69,6 +123,16 @@ export function App() {
   const previewRequestId = useRef(0);
   const [showNewApp, setShowNewApp] = useState(false);
   const [dragging, setDragging] = useState(false);
+  const [shotDragging, setShotDragging] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const savedSnapshotRef = useRef("");
+
+  const isDirty = useMemo(() => {
+    if (!config) return false;
+    const snap = JSON.stringify({ config, localeBundle });
+    return snap !== savedSnapshotRef.current;
+  }, [config, localeBundle]);
 
   const screen = useMemo(
     () => config?.screens.find((s) => s.id === screenId),
@@ -77,6 +141,10 @@ export function App() {
 
   const visiblePresets = useMemo(() => {
     if (!config) return presets;
+    const deviceType = screen?.device?.type;
+    if (deviceType) {
+      return presets.filter((p) => p.platform === deviceType);
+    }
     const targets = config.targets ?? ["ios"];
     return presets.filter((p) => {
       if (targets.includes("ios") && (p.platform === "iphone" || p.platform === "ipad")) {
@@ -87,7 +155,21 @@ export function App() {
       }
       return false;
     });
-  }, [config, presets]);
+  }, [config, presets, screen?.device?.type]);
+
+  useEffect(() => {
+    if (visiblePresets.length === 0) return;
+    if (visiblePresets.some((p) => p.id === presetId)) return;
+    const deviceType = screen?.device?.type;
+    const preferred =
+      deviceType === "mac"
+        ? (config?.defaultMacPreset ?? "mac2880")
+        : deviceType === "ipad"
+          ? "ipad13"
+          : (config?.defaultPreset ?? "iphone69");
+    const match = visiblePresets.find((p) => p.id === preferred);
+    setPresetId(match?.id ?? visiblePresets[0].id);
+  }, [visiblePresets, presetId, screen?.device?.type, config]);
 
   const loadApps = useCallback(async () => {
     const res = await fetch("/api/apps");
@@ -128,6 +210,10 @@ export function App() {
       if (shotsRes.ok && Array.isArray(shotsData)) {
         setScreenshots(shotsData);
       }
+      savedSnapshotRef.current = JSON.stringify({
+        config: data.config,
+        localeBundle: data.locale ?? {},
+      });
     } catch (e) {
       if (e instanceof DOMException && e.name === "AbortError") return;
       setConfig(null);
@@ -147,6 +233,9 @@ export function App() {
     fetch("/api/backgrounds")
       .then((r) => r.json())
       .then(setBackgrounds);
+    fetch("/api/templates")
+      .then((r) => r.json())
+      .then(setTemplates);
   }, [loadApps]);
 
   useEffect(() => {
@@ -212,21 +301,104 @@ export function App() {
     setLocaleBundle((b) => setKey(b, key, value));
   }
 
-  async function saveConfig() {
+  async function saveProject() {
     if (!config) return;
-    await fetch(`/api/apps/${appId}/config`, {
+    const configRes = await fetch(`/api/apps/${appId}/config`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(config),
     });
-    if (Object.keys(localeBundle).length > 0) {
-      await fetch(`/api/apps/${appId}/locales/${config.defaultLocale}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(localeBundle),
-      });
+    if (!configRes.ok) {
+      const err = await configRes.json();
+      setStatus(err.error ?? "Failed to save project");
+      return;
     }
-    setStatus("Configuration saved.");
+    if (Object.keys(localeBundle).length > 0) {
+      const locRes = await fetch(
+        `/api/apps/${appId}/locales/${config.defaultLocale}`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(localeBundle),
+        },
+      );
+      if (!locRes.ok) {
+        const err = await locRes.json();
+        setStatus(err.error ?? "Failed to save locale copy");
+        return;
+      }
+    }
+    savedSnapshotRef.current = JSON.stringify({ config, localeBundle });
+    setStatus("Project saved (config, copy, and screenshot links).");
+  }
+
+  function requestAppId(nextId: string) {
+    if (nextId === appId) return;
+    if (
+      isDirty &&
+      !confirm(
+        "This project has unsaved changes. Switch apps anyway? (Uploads are already stored per app.)",
+      )
+    ) {
+      return;
+    }
+    setAppId(nextId);
+  }
+
+  async function refreshScreenshots() {
+    const shotsRes = await fetch(`/api/apps/${appId}/screenshots`);
+    const shotsData = await shotsRes.json();
+    if (shotsRes.ok && Array.isArray(shotsData)) {
+      setScreenshots(shotsData);
+    }
+  }
+
+  async function uploadScreenshot(file: File) {
+    if (!config || !screen) return;
+    setUploading(true);
+    setStatus("");
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      form.append("screenId", screenId);
+      const res = await fetch(`/api/apps/${appId}/screenshots`, {
+        method: "POST",
+        body: form,
+      });
+      const data = await res.json();
+      if (!res.ok || data.error) {
+        setStatus(data.error ?? "Upload failed");
+        return;
+      }
+      if (data.config) {
+        setConfig(data.config);
+        savedSnapshotRef.current = JSON.stringify({
+          config: data.config,
+          localeBundle,
+        });
+      } else {
+        updateScreen({ screenshot: data.filename });
+      }
+      await refreshScreenshots();
+      setStatus(`Screenshot uploaded for ${screen.id}.`);
+    } catch (e) {
+      setStatus(e instanceof Error ? e.message : "Upload failed");
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  }
+
+  function onScreenshotFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (file) void uploadScreenshot(file);
+  }
+
+  function onScreenshotDrop(e: React.DragEvent) {
+    e.preventDefault();
+    setShotDragging(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) void uploadScreenshot(file);
   }
 
   async function runValidate() {
@@ -323,7 +495,7 @@ export function App() {
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
           <select
             value={appId}
-            onChange={(e) => setAppId(e.target.value)}
+            onChange={(e) => requestAppId(e.target.value)}
             aria-label="App"
           >
             {apps.map((a) => (
@@ -398,8 +570,8 @@ export function App() {
             <button type="button" className="btn" onClick={() => runGenerate(false)}>
               Generate (dev)
             </button>
-            <button type="button" className="btn" onClick={saveConfig}>
-              Save config
+            <button type="button" className="btn btn-primary" onClick={saveProject}>
+              Save project
             </button>
           </div>
           {status && <div className="status">{status}</div>}
@@ -422,6 +594,38 @@ export function App() {
           </div>
           <div className="field">
             <label>Screenshot</label>
+            <p className="field-hint">
+              Uploads are stored inside this app&apos;s project folder and linked
+              to the selected screen.
+            </p>
+            <div
+              className={`upload-drop${shotDragging ? " upload-drop-active" : ""}`}
+              onDragOver={(e) => {
+                e.preventDefault();
+                setShotDragging(true);
+              }}
+              onDragLeave={() => setShotDragging(false)}
+              onDrop={onScreenshotDrop}
+            >
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/png,image/jpeg,image/jpg"
+                hidden
+                onChange={onScreenshotFileChange}
+              />
+              <button
+                type="button"
+                className="btn"
+                disabled={uploading}
+                onClick={() => fileInputRef.current?.click()}
+              >
+                {uploading ? "Uploading…" : "Upload for this screen"}
+              </button>
+              <span className="upload-drop-hint">
+                or drop PNG / JPEG here
+              </span>
+            </div>
             <div className="thumbs">
               {screenshots.map((f) => (
                 <button
@@ -429,9 +633,10 @@ export function App() {
                   type="button"
                   className={screen.screenshot === f ? "selected" : ""}
                   onClick={() => updateScreen({ screenshot: f })}
+                  title={f}
                 >
                   <img
-                    src={`/api/apps/${appId}/screenshot/${f}`}
+                    src={`/api/apps/${appId}/screenshot/${encodeURIComponent(f)}`}
                     alt={f}
                   />
                 </button>
@@ -440,14 +645,11 @@ export function App() {
           </div>
           <div className="field">
             <label>Template</label>
-            <select
+            <TemplateSelect
               value={screen.template ?? config.template}
-              onChange={(e) => updateScreen({ template: e.target.value as AppConfig["template"] })}
-            >
-              <option value="utility-clean">Utility Clean</option>
-              <option value="puzzle">Puzzle</option>
-              <option value="arcade">Arcade</option>
-            </select>
+              onChange={(id) => updateScreen({ template: id })}
+              templates={templates}
+            />
           </div>
           <div className="field">
             <label>Background</label>
@@ -482,14 +684,30 @@ export function App() {
                 <label>Device</label>
                 <select
                   value={screen.device.type}
-                  onChange={(e) =>
+                  onChange={(e) => {
+                    const type = e.target.value as "iphone" | "ipad" | "mac";
                     updateScreen({
                       device: {
                         ...screen.device!,
-                        type: e.target.value as "iphone" | "ipad",
+                        type,
+                        ...(type === "mac" ? { rotation: 0 } : {}),
                       },
-                    })
-                  }
+                    });
+                    const forPlatform = presets.filter((p) => p.platform === type);
+                    if (
+                      forPlatform.length > 0 &&
+                      !forPlatform.some((p) => p.id === presetId)
+                    ) {
+                      const preferred =
+                        type === "mac"
+                          ? (config?.defaultMacPreset ?? "mac2880")
+                          : type === "ipad"
+                            ? "ipad13"
+                            : (config?.defaultPreset ?? "iphone69");
+                      const match = forPlatform.find((p) => p.id === preferred);
+                      setPresetId(match?.id ?? forPlatform[0].id);
+                    }
+                  }}
                 >
                   <option value="iphone">iPhone</option>
                   <option value="ipad">iPad</option>
@@ -598,6 +816,7 @@ export function App() {
 
       {showNewApp && (
         <NewAppModal
+          templates={templates}
           onClose={() => setShowNewApp(false)}
           onCreated={(id) => {
             setShowNewApp(false);
@@ -611,9 +830,11 @@ export function App() {
 }
 
 function NewAppModal({
+  templates,
   onClose,
   onCreated,
 }: {
+  templates: TemplateOption[];
   onClose: () => void;
   onCreated: (id: string) => void;
 }) {
@@ -664,11 +885,11 @@ function NewAppModal({
         </div>
         <div className="field">
           <label>Template</label>
-          <select value={template} onChange={(e) => setTemplate(e.target.value)}>
-            <option value="utility-clean">Utility Clean</option>
-            <option value="puzzle">Puzzle</option>
-            <option value="arcade">Arcade</option>
-          </select>
+          <TemplateSelect
+            value={template}
+            onChange={setTemplate}
+            templates={templates}
+          />
         </div>
         <div className="field">
           <label>App Store targets</label>

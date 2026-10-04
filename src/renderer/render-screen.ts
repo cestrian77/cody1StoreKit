@@ -44,10 +44,11 @@ export async function renderScreen(
     : undefined;
 
   const layoutType = input.screen.layout?.type ?? "hero-device";
-  const textAlign = input.screen.layout?.textAlign ?? "center";
+  const textAlign =
+    input.screen.layout?.textAlign ?? template.layout.defaultTextAlign;
   const typo = template.typography;
   const isMac = preset.platform === "mac";
-  const paddingX = W * (isMac ? 0.06 : 0.08);
+  const paddingX = W * (isMac ? 0.06 : template.layout.paddingXRatio);
   const headlineTop = isMac ? 0.06 : template.headlineTopRatio;
   const headlineSizeRatio = isMac
     ? typo.headlineSizeRatio * 0.55
@@ -57,23 +58,21 @@ export async function renderScreen(
     : typo.subheadSizeRatio;
 
   const bgConfig = resolveBackground(input.screen.background);
-  const bgSvg = buildBackgroundSvg(
-    W,
-    H,
-    bgConfig,
-    template.decorativeIntensity,
-  );
+  const bgSvg = buildBackgroundSvg(W, H, bgConfig, {
+    intensity: template.decorativeIntensity,
+    style: template.decorStyle,
+  });
   const bgLayer = await svgToPng(bgSvg, W, H);
 
   const headlineMaxW = resolveLength(
     input.screen.layout?.headlineMaxWidth,
     W,
-    0.84,
+    template.layout.headlineMaxWidthDefault,
   );
   const subheadMaxW = resolveLength(
     input.screen.layout?.subheadMaxWidth,
     W,
-    0.78,
+    template.layout.subheadMaxWidthDefault,
   );
 
   const headlineSize = W * headlineSizeRatio;
@@ -191,7 +190,7 @@ function buildFeatureListSvg(
 ): string {
   const features = input.screen.features ?? [];
   const typo = template.typography;
-  const startY = H * 0.42;
+  const startY = H * template.layout.featureListStartRatio;
   const gap = H * 0.075;
   const maxW = W - paddingX * 2;
   let y = startY;
@@ -233,8 +232,9 @@ function buildFeatureCardsSvg(
   if (cards.length === 0) return "";
   const cardW = (W - paddingX * 2 - 24 * (cards.length - 1)) / cards.length;
   const cardH = H * 0.12;
-  const y = H * 0.58;
+  const y = H * template.layout.featureCardsYRatio;
   const typo = template.typography;
+  const cardStyle = template.featureCards;
   const parts: string[] = [];
 
   cards.forEach((card, i) => {
@@ -245,17 +245,17 @@ function buildFeatureCardsSvg(
       : undefined;
     const icon = card.icon ? (FEATURE_ICONS[card.icon] ?? "") : "";
     parts.push(
-      `<rect x="${x}" y="${y}" width="${cardW}" height="${cardH}" rx="16" fill="white" opacity="0.92"/>`,
+      `<rect x="${x}" y="${y}" width="${cardW}" height="${cardH}" rx="${cardStyle.borderRadius}" fill="${cardStyle.fill}" opacity="${cardStyle.fillOpacity}"/>`,
     );
     parts.push(
       `<text x="${x + cardW / 2}" y="${y + cardH * 0.42}" text-anchor="middle" font-size="${W * 0.04}" font-family='${escapeFontFamily(typo.headlineFontFamily)}'>${icon}</text>`,
     );
     parts.push(
-      `<text x="${x + cardW / 2}" y="${y + cardH * 0.68}" text-anchor="middle" font-size="${W * 0.028}" font-weight="700" fill="${typo.headlineColor}" font-family='${escapeFontFamily(typo.headlineFontFamily)}'>${escapeXml(title)}</text>`,
+      `<text x="${x + cardW / 2}" y="${y + cardH * 0.68}" text-anchor="middle" font-size="${W * 0.028}" font-weight="700" fill="${cardStyle.titleColor}" font-family='${escapeFontFamily(typo.headlineFontFamily)}'>${escapeXml(title)}</text>`,
     );
     if (sub) {
       parts.push(
-        `<text x="${x + cardW / 2}" y="${y + cardH * 0.88}" text-anchor="middle" font-size="${W * 0.022}" fill="${typo.subheadColor}" font-family='${escapeFontFamily(typo.subheadFontFamily)}'>${escapeXml(sub)}</text>`,
+        `<text x="${x + cardW / 2}" y="${y + cardH * 0.88}" text-anchor="middle" font-size="${W * 0.022}" fill="${cardStyle.subtitleColor}" font-family='${escapeFontFamily(typo.subheadFontFamily)}'>${escapeXml(sub)}</text>`,
       );
     }
   });

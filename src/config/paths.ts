@@ -45,4 +45,4 @@ export function placeholderManifestPath(appId: string): string {
 /** @deprecated use getProjectRoot() */
 export const PROJECT_ROOT = getProjectRoot();
 
-export const STOREKIT_VERSION = "1.0.0";
+export const STOREKIT_VERSION = "1.0.2";

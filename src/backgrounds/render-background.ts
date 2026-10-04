@@ -1,4 +1,6 @@
 import type { BackgroundConfig } from "../schemas/app-config.js";
+import { buildTemplateDecorSvg } from "../templates/decor.js";
+import type { DecorStyle } from "../templates/types.js";
 import { resolveBackground } from "./presets.js";
 
 function angleToCoords(angleDeg: number, w: number, h: number) {
@@ -17,7 +19,10 @@ export function buildBackgroundSvg(
   width: number,
   height: number,
   config?: BackgroundConfig,
-  templateDecor?: "minimal" | "medium" | "high",
+  decor?: {
+    intensity: "minimal" | "medium" | "high";
+    style: DecorStyle;
+  },
 ): string {
   const bg = resolveBackground(config);
   let defs = "";
@@ -46,19 +51,21 @@ export function buildBackgroundSvg(
     fill = `<rect width="100%" height="100%" fill="url(#${id})"/>`;
   }
 
-  let decor = "";
-  if (templateDecor === "medium" || templateDecor === "high") {
-    decor += `<circle cx="${width * 0.85}" cy="${height * 0.12}" r="${width * 0.18}" fill="white" opacity="0.08"/>`;
-    decor += `<circle cx="${width * 0.1}" cy="${height * 0.88}" r="${width * 0.22}" fill="white" opacity="0.06"/>`;
-  }
-  if (templateDecor === "high") {
-    decor += `<ellipse cx="${width * 0.5}" cy="${height * 0.55}" rx="${width * 0.45}" ry="${height * 0.25}" fill="url(#glow)" opacity="0.35"/>`;
-    defs += `<radialGradient id="glow"><stop offset="0%" stop-color="#ffffff" stop-opacity="0.5"/><stop offset="100%" stop-color="#ffffff" stop-opacity="0"/></radialGradient>`;
+  let decorMarkup = "";
+  if (decor) {
+    const { defs: decorDefs, markup } = buildTemplateDecorSvg(
+      width,
+      height,
+      decor.style,
+      decor.intensity,
+    );
+    defs += decorDefs;
+    decorMarkup = markup;
   }
 
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
   <defs>${defs}</defs>
   ${fill}
-  ${decor}
+  ${decorMarkup}
 </svg>`;
 }

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { TEMPLATE_IDS } from "../templates/index.js";
 
 const relativeOrPx = z.union([
   z.number().min(0).max(2),
@@ -111,7 +112,7 @@ export const AppConfigSchema = z.object({
   targets: z
     .array(z.enum(["ios", "mac"]))
     .default(["ios"]),
-  template: z.enum(["utility-clean", "puzzle", "arcade"]).default("utility-clean"),
+  template: z.enum(TEMPLATE_IDS).default("utility-clean"),
   defaultLocale: z.string().default("en-GB"),
   defaultPreset: z.string().default("iphone69"),
   /** Used when generating Mac screenshots (UI + CLI). */

@@ -134,6 +134,25 @@ export function isPlaceholderFile(
   return manifest.files.includes(filename);
 }
 
+/** Record that a file in screenshots/raw is a genuine upload, not a dev placeholder. */
+export async function markScreenshotAsGenuine(
+  appId: string,
+  filename: string,
+): Promise<void> {
+  const manifest = await readPlaceholderManifest(appId);
+  if (!manifest.files.includes(filename) && !manifest.hashes?.[filename]) {
+    return;
+  }
+  const files = manifest.files.filter((f) => f !== filename);
+  const hashes = { ...(manifest.hashes ?? {}) };
+  delete hashes[filename];
+  await writePlaceholderManifest(appId, {
+    files,
+    hashes,
+    updatedAt: new Date().toISOString(),
+  });
+}
+
 export function formatPlaceholderError(
   appId: string,
   filename: string,

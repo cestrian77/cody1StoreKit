@@ -1,5 +1,6 @@
 import fs from "node:fs/promises";
 import path from "node:path";
+import { syncAppAssetsFromSeed } from "../config/sync-seed-assets.js";
 import { localesDir } from "../config/paths.js";
 
 export type LocaleBundle = Record<string, unknown>;
@@ -13,10 +14,20 @@ export async function loadLocale(
     const raw = await fs.readFile(file, "utf-8");
     return JSON.parse(raw) as LocaleBundle;
   } catch {
-    throw new Error(
-      `Locale file not found: apps/${appId}/locales/${locale}.json`,
-    );
+    await syncAppAssetsFromSeed(appId);
+    try {
+      const raw = await fs.readFile(file, "utf-8");
+      return JSON.parse(raw) as LocaleBundle;
+    } catch {
+      throw new Error(
+        `Locale file not found: apps/${appId}/locales/${locale}.json`,
+      );
+    }
   }
+}
+
+export function hasLocaleContent(bundle: LocaleBundle | undefined): boolean {
+  return Boolean(bundle && Object.keys(bundle).length > 0);
 }
 
 export function resolveLocaleKey(bundle: LocaleBundle, keyPath: string): string {

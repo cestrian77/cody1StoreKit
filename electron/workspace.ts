@@ -1,6 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import type { app as ElectronApp } from "electron";
+import { syncAllWorkspaceAppsFromSeed } from "../src/config/sync-seed-assets.js";
 
 async function pathExists(p: string): Promise<boolean> {
   try {
@@ -111,6 +112,8 @@ export async function migrateWorkspaceConfigs(workspace: string): Promise<void> 
 
   const seedRoot = path.join(process.resourcesPath, "seed-apps");
   const seedAppsRoot = (await pathExists(seedRoot)) ? seedRoot : undefined;
+
+  await syncAllWorkspaceAppsFromSeed(workspace, seedAppsRoot);
 
   const entries = await fs.readdir(appsDir, { withFileTypes: true });
   for (const entry of entries) {

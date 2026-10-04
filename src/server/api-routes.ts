@@ -8,7 +8,13 @@ import {
 } from "../config/load-app.js";
 import { localesDir, screenshotsRawDir } from "../config/paths.js";
 import { BACKGROUND_PRESETS } from "../backgrounds/presets.js";
-import { listLocales, loadLocale } from "../localisation/resolve.js";
+import {
+  hasLocaleContent,
+  listLocales,
+  loadLocale,
+  type LocaleBundle,
+} from "../localisation/resolve.js";
+import { syncAppAssetsFromSeed } from "../config/sync-seed-assets.js";
 import { OUTPUT_PRESETS } from "../presets/output-presets.js";
 import { TEMPLATES } from "../templates/index.js";
 import { renderSet } from "../renderer/render-set.js";
@@ -46,18 +52,19 @@ export function registerApiRoutes(app: Express): void {
 
   app.get("/api/apps/:appId", async (req, res) => {
     try {
-      const config = await loadAppConfig(req.params.appId);
-      const locales = await listLocales(req.params.appId);
-      let localeBundle = {};
+      const appId = req.params.appId;
+      await syncAppAssetsFromSeed(appId);
+      const config = await loadAppConfig(appId);
+      const locales = await listLocales(appId);
+      let localeBundle: LocaleBundle = {};
+      let localeWarning: string | undefined;
       try {
-        localeBundle = await loadLocale(
-          req.params.appId,
-          config.defaultLocale,
-        );
-      } catch {
-        /* empty */
+        localeBundle = await loadLocale(appId, config.defaultLocale);
+      } catch (e) {
+        localeWarning =
+          e instanceof Error ? e.message : String(e);
       }
-      res.json({ config, locales, locale: localeBundle });
+      res.json({ config, locales, locale: localeBundle, localeWarning });
     } catch (e) {
       res.status(400).json({
         error: e instanceof Error ? e.message : String(e),
@@ -120,10 +127,12 @@ export function registerApiRoutes(app: Express): void {
   });
 
   app.get("/api/apps/:appId/screenshot/:filename", async (req, res) => {
-    const file = path.join(
-      screenshotsRawDir(req.params.appId),
-      req.params.filename,
-    );
+    const filename = path.basename(req.params.filename);
+    if (!filename || filename !== req.params.filename) {
+      res.status(400).json({ error: "Invalid screenshot filename" });
+      return;
+    }
+    const file = path.join(screenshotsRawDir(req.params.appId), filename);
     try {
       await fs.access(file);
       res.sendFile(file);
@@ -151,9 +160,9 @@ export function registerApiRoutes(app: Express): void {
       };
       const config =
         configOverride ?? (await loadAppConfig(appId));
-      const loc =
-        localeOverride ??
-        (await loadLocale(appId, locale ?? config.defaultLocale));
+      const loc = hasLocaleContent(localeOverride)
+        ? localeOverride!
+        : await loadLocale(appId, locale ?? config.defaultLocale);
       const screen = config.screens.find((s) => s.id === screenId);
       if (!screen) {
         res.status(404).json({ error: "Screen not found" });

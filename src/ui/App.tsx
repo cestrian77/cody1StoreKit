@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { AppConfig, ScreenConfig } from "../schemas/app-config";
 import cody1Logo from "./assets/cody1-logo.png";
 
@@ -64,7 +64,9 @@ export function App() {
   const [screenId, setScreenId] = useState<string>("01-hero");
   const [presetId, setPresetId] = useState("iphone69");
   const [previewUrl, setPreviewUrl] = useState<string>("");
+  const [previewError, setPreviewError] = useState("");
   const [status, setStatus] = useState("");
+  const previewRequestId = useRef(0);
   const [showNewApp, setShowNewApp] = useState(false);
   const [dragging, setDragging] = useState(false);
 
@@ -96,6 +98,7 @@ export function App() {
   const loadApp = useCallback(async (id: string, signal?: AbortSignal) => {
     try {
       setStatus("");
+      setPreviewError("");
       const res = await fetch(`/api/apps/${id}`, { signal });
       const data = await res.json();
       if (signal?.aborted) return;
@@ -117,7 +120,7 @@ export function App() {
         : data.config.defaultMacPreset ?? "mac2880";
       setPresetId(initial);
       setScreenId(data.config.screens[0]?.id ?? "01-hero");
-      setStatus("");
+      setStatus(data.localeWarning ?? "");
 
       const shotsRes = await fetch(`/api/apps/${id}/screenshots`, { signal });
       if (signal?.aborted) return;
@@ -154,20 +157,28 @@ export function App() {
 
   const refreshPreview = useCallback(async () => {
     if (!config || !screen) return;
+    const requestId = ++previewRequestId.current;
+    setPreviewError("");
+    const body: Record<string, unknown> = {
+      appId,
+      screenId,
+      presetId,
+      configOverride: config,
+    };
+    if (Object.keys(localeBundle).length > 0) {
+      body.localeOverride = localeBundle;
+    }
     const res = await fetch("/api/preview", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        appId,
-        screenId,
-        presetId,
-        configOverride: config,
-        localeOverride: localeBundle,
-      }),
+      body: JSON.stringify(body),
     });
+    if (requestId !== previewRequestId.current) return;
     if (!res.ok) {
       const err = await res.json();
-      setStatus(err.error ?? "Preview failed");
+      const message = err.error ?? "Preview failed";
+      setPreviewError(message);
+      setStatus(message);
       return;
     }
     const blob = await res.blob();
@@ -176,6 +187,7 @@ export function App() {
       if (prev) URL.revokeObjectURL(prev);
       return url;
     });
+    setPreviewError("");
   }, [appId, config, localeBundle, presetId, screen, screenId]);
 
   useEffect(() => {
@@ -207,11 +219,13 @@ export function App() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(config),
     });
-    await fetch(`/api/apps/${appId}/locales/${config.defaultLocale}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(localeBundle),
-    });
+    if (Object.keys(localeBundle).length > 0) {
+      await fetch(`/api/apps/${appId}/locales/${config.defaultLocale}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(localeBundle),
+      });
+    }
     setStatus("Configuration saved.");
   }
 
@@ -351,6 +365,18 @@ export function App() {
           >
             {previewUrl ? (
               <img src={previewUrl} alt="Live preview" draggable={false} />
+            ) : previewError ? (
+              <div
+                style={{
+                  padding: 48,
+                  color: "var(--danger)",
+                  maxWidth: 480,
+                  textAlign: "center",
+                  lineHeight: 1.5,
+                }}
+              >
+                {previewError}
+              </div>
             ) : (
               <div style={{ padding: 80, color: "#666" }}>Preview…</div>
             )}

@@ -7,7 +7,7 @@ import { getTemplate } from "../templates/index.js";
 import { buildTextSvg } from "../typography/layout-text.js";
 import { resolveLength } from "../utils/relative.js";
 import type { RenderResult, RenderScreenInput } from "./types.js";
-import { compositeLayers, svgToPng } from "./compositor.js";
+import { compositeCentered, compositeLayers, svgToPng } from "./compositor.js";
 import { renderDeviceWithScreenshot } from "./render-device.js";
 import { resolveDeviceForPreset } from "./resolve-device.js";
 
@@ -166,12 +166,14 @@ export async function renderScreen(
       device,
       deviceBaseWidth,
     );
-    const dMeta = await sharp(deviceBuf).metadata();
-    const dw = dMeta.width ?? deviceBaseWidth;
-    const dh = dMeta.height ?? deviceBaseWidth * 2;
-    const left = Math.round(device.x * W - dw / 2);
-    const top = Math.round(device.y * H - dh / 2);
-    layers.push({ input: deviceBuf, left, top });
+    const deviceLayer = await compositeCentered(
+      W,
+      H,
+      deviceBuf,
+      device.x * W,
+      device.y * H,
+    );
+    layers.push({ input: deviceLayer });
   }
 
   const buffer = await compositeLayers(W, H, layers);
